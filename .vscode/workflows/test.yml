@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: npm ci
+      - name: Set sha_short
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Create dot env file
+        shell: bash
+        run: |
+          touch .env
+          echo "VITE_APP_VERSION_HASH=$(node -p -e "require('./package.json').version").${{ steps.vars.outputs.sha_short }}" >> .env
+      - name: Test
+        run: npm run test
+      - name: format
+        run: npm run format:ci
+      - name: lint
+        run: npm run lint:ci
+      - name: Build
+        run: bash scripts/build.sh
